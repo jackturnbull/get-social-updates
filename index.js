@@ -7,6 +7,7 @@ const TWITTER_USERS = ["getprotocol", "bloemersmaarten"];
 const TWITTER_SYMBOLS = ["get"];
 const TWITTER_BLACKLIST = ["huobi"];
 const MAXIMUM_SYMBOLS_COUNT = 4;
+const MAXIMUM_USER_MENTIONS_COUNT = 4;
 
 const telegramBot = new TelegramBot(process.env.TELEGRAM_TOKEN);
 const twitterClient = new Twitter({
@@ -36,6 +37,7 @@ const isTweetTruncated = (tweet) => !!tweet.truncated;
 // Composed selectors
 const doesTweetContainBlacklist = (tweet) => any(flip(contains)(toLower(getContent(tweet))), TWITTER_BLACKLIST);
 const doesTweetContainTooManySymbols = (tweet) => gt(length(getSymbols(tweet)), MAXIMUM_SYMBOLS_COUNT);
+const doesTweetContainTooManyUserMentions = (tweet) => gt(length(getUserMentions(tweet)), MAXIMUM_USER_MENTIONS_COUNT);
 const doesTweetContainReference = (tweet) =>
   tweetFromUser(getUserName(tweet)) ||
   tweetContainsSymbol(getSymbols(tweet)) ||
@@ -76,13 +78,13 @@ const processTweet = async (tweet) => {
     return;
   }
 
-  if (doesTweetContainTooManySymbols(tweet)) {
-    console.log("[INFO] tweet contains too many symbols with ID", id);
+  if (doesTweetContainBlacklist(tweet)) {
+    console.log("[INFO] blacklisted tweet with ID", id);
     return;
   }
 
-  if (doesTweetContainBlacklist(tweet)) {
-    console.log("[INFO] blacklisted tweet with ID", id);
+  if (doesTweetContainTooManySymbols(tweet) || doesTweetContainTooManyUserMentions(tweet)) {
+    console.log("[INFO] tweet contains too many tags with ID", id);
     return;
   }
 
@@ -97,6 +99,12 @@ const processTweet = async (tweet) => {
     id,
     tweet_mode: "extended",
   });
+
+  if (doesTweetContainTooManySymbols(extendedTweet) || doesTweetContainTooManyUserMentions(extendedTweet)) {
+    console.log("[INFO] extended tweet contains too many symbols with ID", id);
+    return;
+  }
+
 
   if (doesTweetContainReference(extendedTweet)) {
     console.log("[INFO] pushing extended tweet to telegram", id);
